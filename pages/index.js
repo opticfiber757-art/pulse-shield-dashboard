@@ -187,15 +187,31 @@ const PageContent = memo(function PageContent({
                         borderRadius:"50%",background:"rgba(255,255,255,0.06)",
                         animation:"float 5s ease-in-out infinite 1s" }}/>
           <div style={{ fontSize:11,letterSpacing:2,opacity:0.7,marginBottom:8,
-                        textTransform:"uppercase",fontWeight:600 }}>Worker Health</div>
-          <div style={{ fontSize:26,fontWeight:800,lineHeight:1.2,marginBottom:20 }}>
+                        textTransform:"uppercase",fontWeight:600 }}>Worker Health Status</div>
+          <div style={{ fontSize:26,fontWeight:800,lineHeight:1.2,marginBottom:12 }}>
             Pulse Shield<br/>Digital Twin
           </div>
+          <div style={{
+            display:"inline-flex", alignItems:"center", gap:8,
+            background:"rgba(255,255,255,0.15)",
+            border:"1px solid rgba(255,255,255,0.3)",
+            borderRadius:999, padding:"6px 14px", marginBottom:14,
+          }}>
+            <span style={{
+              width:9, height:9, borderRadius:"50%", display:"inline-block",
+              background: d.status==="NORMAL" ? "#4ade80" : d.status==="WARNING" ? "#fbbf24" : "#f87171",
+              boxShadow: `0 0 8px ${d.status==="NORMAL"?"#4ade80":d.status==="WARNING"?"#fbbf24":"#f87171"}`,
+              animation: d.status!=="NORMAL" ? "pulse 0.6s infinite" : "none",
+            }}/>
+            <span style={{ fontSize:13, fontWeight:700, letterSpacing:1 }}>
+              {d.status}
+            </span>
+          </div>
           <div style={{ display:"flex",gap:14,fontSize:12 }}>
-            {[["Normal","#22c55e"],["Warning","#f59e0b"],["Critical","#ef4444"]].map(([l,c])=>(
+            {[["Normal","#4ade80"],["Warning","#fbbf24"],["Critical","#f87171"]].map(([l,c])=>(
               <div key={l} style={{ display:"flex",alignItems:"center",gap:5 }}>
                 <div style={{ width:8,height:8,borderRadius:"50%",background:c }}/>
-                <span style={{ opacity:0.85 }}>{l}</span>
+                <span style={{ opacity:0.8 }}>{l}</span>
               </div>
             ))}
           </div>
@@ -264,8 +280,8 @@ const PageContent = memo(function PageContent({
           sub={d.spo2<90?"⚠ CRITICAL":"Normal"} mini={spo2Hist}/>
         <StatCard label="Temperature" value={d.temp} unit="°C" color="#f59e0b" icon="🌡️"
           sub={d.temp>38.5?"⚠ FEVER":"Normal"} mini={tempHist}/>
-        <StatCard label="ECG Frequency" value={(d.hr/60).toFixed(2)} unit="Hz" color="#8b5cf6" icon="📡"
-          sub="PQRST waveform" mini={hrHist.map(v=>v/2)}/>
+        <StatCard label="Fall Detection" value={d.fall ? "FALL!" : "Safe"} unit="" color={d.fall ? "#ef4444" : "#22c55e"} icon={d.fall ? "🚨" : "🛡️"}
+          sub={d.fall ? "⚠ Emergency — fall detected" : "No fall detected"} mini={riskHist}/>
       </div>
 
       {/* ECG + Map */}
