@@ -148,6 +148,7 @@ export default function Dashboard() {
   const [time,      setTime]      = useState("");
   const [connected, setConnected] = useState(false);
   const [page,      setPage]      = useState(0);
+  const lastStRef = useRef("NORMAL");
 
   useEffect(() => {
     const id = setInterval(()=>setTime(new Date().toLocaleTimeString()),1000);
@@ -166,13 +167,14 @@ export default function Dashboard() {
         setSpo2Hist(prev=>[...prev,json.spo2].slice(-10));
         setTempHist(prev=>[...prev,json.temperature].slice(-10));
         setRiskHist(prev=>[...prev,json.riskScore||0].slice(-10));
-        if (json.workerStatus !== lastSt) {
+        if (json.workerStatus !== lastStRef.current) {
           const t = new Date().toLocaleTimeString();
           setAlerts(prev=>[{
             time:t, msg:json.workerStatus,
             type: json.workerStatus==="NORMAL"?"ok":json.riskScore>=60?"critical":"warn",
             hr:json.heartRate?.toFixed(1), spo2:json.spo2?.toFixed(1),
           },...prev].slice(0,15));
+          lastStRef.current = json.workerStatus;
           setLastSt(json.workerStatus);
         }
         setTick(t=>t+1);
@@ -181,7 +183,7 @@ export default function Dashboard() {
     fetchData();
     const id = setInterval(fetchData,2000);
     return ()=>clearInterval(id);
-  },[lastSt]);
+  },[]);
 
   const d    = data || {};
   const hr   = d.heartRate   || 72;
