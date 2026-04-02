@@ -241,14 +241,17 @@ const PageContent = memo(function PageContent({
           </div>
         </div>
 
-        {/* Device status */}
+        {/* Fault Indicator */}
         <div style={{ background:"white",borderRadius:20,padding:"20px",
                       boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize:10,color:"#94a3b8",letterSpacing:1.5,
-                        textTransform:"uppercase",fontWeight:600,marginBottom:12 }}>Device Status</div>
-          <AlertRow label="Fall Detection" value={d.fall?"YES":"No"} color={d.fall?"#ef4444":"#22c55e"}/>
-          <AlertRow label="4G Signal" value={`${d.signal}/31`} color="#6366f1"/>
-          <AlertRow label="Updates" value={`${d.tick}`} color="#8b5cf6"/>
+                        textTransform:"uppercase",fontWeight:600,marginBottom:12 }}>Live Vitals</div>
+          <AlertRow label="Heart Rate" value={`${d.hr?.toFixed(1)} bpm`}
+            color={d.hr>120||d.hr<50?"#ef4444":"#22c55e"}/>
+          <AlertRow label="SpO₂" value={`${d.spo2?.toFixed(1)}%`}
+            color={d.spo2<90?"#ef4444":d.spo2<95?"#f59e0b":"#22c55e"}/>
+          <AlertRow label="Resp Rate" value={`${d.respRate?.toFixed(0)} br/min`}
+            color={d.respRate>20||d.respRate<12?"#f59e0b":"#6366f1"}/>
         </div>
 
         {/* Latest alerts */}
@@ -280,8 +283,10 @@ const PageContent = memo(function PageContent({
           sub={d.spo2<90?"⚠ CRITICAL":"Normal"} mini={spo2Hist}/>
         <StatCard label="Temperature" value={d.temp} unit="°C" color="#f59e0b" icon="🌡️"
           sub={d.temp>38.5?"⚠ FEVER":"Normal"} mini={tempHist}/>
-        <StatCard label="Fall Detection" value={d.fall ? "FALL!" : "Safe"} unit="" color={d.fall ? "#ef4444" : "#22c55e"} icon={d.fall ? "🚨" : "🛡️"}
-          sub={d.fall ? "⚠ Emergency — fall detected" : "No fall detected"} mini={riskHist}/>
+        <StatCard label="Stress (GSR)" value={d.gsr} unit="%" color="#8b5cf6" icon="🧠"
+          sub={d.gsr>70?"⚠ HIGH STRESS":d.gsr>50?"Elevated":"Normal"} mini={hrHist.map(v=>v*0.5)}/> 
+        <StatCard label="Respiratory Rate" value={d.respRate} unit="br/min" color="#06b6d4" icon="🌬️"
+          sub={d.respRate>20?"⚠ HIGH":d.respRate<12?"⚠ LOW":"Normal 12–20"} mini={spo2Hist.map(v=>v*0.2)}/>
       </div>
 
       {/* ECG + Map */}
@@ -533,7 +538,8 @@ const PageContent = memo(function PageContent({
 // ── Main Dashboard component ──
 export default function Dashboard() {
   const liveRef   = useRef({ hr:72, spo2:98, temp:36.8, risk:0, status:"NORMAL",
-                              fall:false, signal:26, lat:17.8687, lng:78.2322, tick:0 });
+                              fall:false, signal:26, gsr:45, respRate:16,
+                              lat:17.8687, lng:78.2322, tick:0 });
   const ecgRef    = useRef(Array(80).fill({v:0}));
   const hrRef     = useRef(Array(10).fill(72));
   const spo2Ref   = useRef(Array(10).fill(98));
@@ -544,6 +550,7 @@ export default function Dashboard() {
 
   const [display,  setDisplay]  = useState({ hr:72, spo2:98, temp:36.8, risk:0,
                                               status:"NORMAL", fall:false, signal:26,
+                                              gsr:45, respRate:16,
                                               lat:17.8687, lng:78.2322, tick:0 });
   const [alerts,   setAlerts]   = useState([]);
   const [connected,setConnected]= useState(false);
@@ -569,16 +576,18 @@ export default function Dashboard() {
 
         // Update refs — no re-render
         liveRef.current = {
-          hr:    json.heartRate   || 72,
-          spo2:  json.spo2        || 98,
-          temp:  json.temperature || 36.8,
-          risk:  json.riskScore   || 0,
-          status:json.workerStatus|| "NORMAL",
-          fall:  json.fallDetected|| false,
-          signal:json.signal      || 26,
-          lat:   json.latitude    || 17.8687,
-          lng:   json.longitude   || 78.2322,
-          tick:  (liveRef.current.tick||0)+1,
+          hr:      json.heartRate   || 72,
+          spo2:    json.spo2        || 98,
+          temp:    json.temperature || 36.8,
+          risk:    json.riskScore   || 0,
+          status:  json.workerStatus|| "NORMAL",
+          fall:    json.fallDetected|| false,
+          signal:  json.signal      || 26,
+          gsr:     json.gsr         || 45,
+          respRate:json.respRate    || 16,
+          lat:     json.latitude    || 17.8687,
+          lng:     json.longitude   || 78.2322,
+          tick:    (liveRef.current.tick||0)+1,
         };
         ecgRef.current   = [...ecgRef.current,   {v:nextECG(liveRef.current.hr)}].slice(-80);
         hrRef.current    = [...hrRef.current,    liveRef.current.hr  ].slice(-10);
@@ -598,9 +607,9 @@ export default function Dashboard() {
           setAlerts([...alertsRef.current]);
         }
 
-        // Only re-render display every 4s (every 2 fetches)
+        // Re-render display every fetch (2s) so status badge updates immediately
         counter++;
-        if (counter >= 2) {
+        if (counter >= 1) {
           counter = 0;
           setDisplay({...liveRef.current});
           setHrHist([...hrRef.current]);
