@@ -574,14 +574,29 @@ export default function Dashboard() {
         const json = await res.json();
         setConnected(!json.simulated);
 
+        // Compute status fresh from raw values — don't trust cached ThingsBoard attribute
+        const hr    = json.heartRate   || 72;
+        const spo2  = json.spo2        || 98;
+        const temp  = json.temperature || 36.8;
+        const fall  = json.fallDetected|| false;
+        const risk  = json.riskScore   || 0;
+        let computedStatus = "NORMAL";
+        if (fall)       computedStatus = "FALL DETECTED";
+        else if (risk >= 60) computedStatus = "CRITICAL";
+        else if (risk >= 30) computedStatus = "WARNING";
+        else if (hr > 120 || hr < 50) computedStatus = "WARNING";
+        else if (spo2 < 90) computedStatus = "CRITICAL";
+        else if (spo2 < 95) computedStatus = "WARNING";
+        else if (temp > 38.5) computedStatus = "WARNING";
+
         // Update refs — no re-render
         liveRef.current = {
-          hr:      json.heartRate   || 72,
-          spo2:    json.spo2        || 98,
-          temp:    json.temperature || 36.8,
-          risk:    json.riskScore   || 0,
-          status:  json.workerStatus|| "NORMAL",
-          fall:    json.fallDetected|| false,
+          hr,
+          spo2,
+          temp,
+          risk,
+          status:  computedStatus,
+          fall,
           signal:  json.signal      || 26,
           gsr:     json.gsr         || 45,
           respRate:json.respRate    || 16,
@@ -595,15 +610,15 @@ export default function Dashboard() {
         tempRef.current  = [...tempRef.current,  liveRef.current.temp].slice(-10);
         riskRef.current  = [...riskRef.current,  liveRef.current.risk].slice(-10);
 
-        // Alert — only re-render for new status
-        if (json.workerStatus !== lastStRef.current) {
+        // Alert — trigger on computed status change, not ThingsBoard cached value
+        if (computedStatus !== lastStRef.current) {
           const t = new Date().toLocaleTimeString();
           alertsRef.current = [{
-            time:t, msg:json.workerStatus,
-            type: json.workerStatus==="NORMAL"?"ok":json.riskScore>=60?"critical":"warn",
-            hr:json.heartRate?.toFixed(1), spo2:json.spo2?.toFixed(1),
+            time:t, msg:computedStatus,
+            type: computedStatus==="NORMAL"?"ok":risk>=60||computedStatus==="CRITICAL"?"critical":"warn",
+            hr:hr.toFixed(1), spo2:spo2.toFixed(1),
           }, ...alertsRef.current].slice(0,15);
-          lastStRef.current = json.workerStatus;
+          lastStRef.current = computedStatus;
           setAlerts([...alertsRef.current]);
         }
 
