@@ -1,6 +1,5 @@
 // pages/api/telemetry.js
 // Proxies ThingsBoard REST API — keeps token server-side
-// ThingsBoard EU endpoint + device token from env vars
 
 const TB_HOST  = process.env.TB_HOST  || "eu.thingsboard.cloud";
 const TB_TOKEN = process.env.TB_TOKEN || "pP2VgUQxExj3nYGkOkxP";
@@ -9,43 +8,44 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   try {
-    // Fetch latest telemetry via ThingsBoard HTTP API
-    const url = `http://${TB_HOST}/api/v1/${TB_TOKEN}/attributes`;
-    const response = await fetch(url, {
+    const attrUrl  = `http://${TB_HOST}/api/v1/${TB_TOKEN}/attributes`;
+    const attrResp = await fetch(attrUrl, {
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(5000),
     });
 
-    if (!response.ok) {
+    if (!attrResp.ok) {
       return res.status(502).json({ error: "ThingsBoard unreachable" });
     }
 
-    const attributes = await response.json();
+    const attributes = await attrResp.json();
+    const c = attributes.client ?? {};
 
-    // Also fetch telemetry keys
-    const telUrl = `http://${TB_HOST}/api/v1/${TB_TOKEN}/telemetry`;
-    // ThingsBoard HTTP API doesn't support GET telemetry via device token
-    // We use the client attributes which the simulator writes to
-    const data = {
-      heartRate:    parseFloat(attributes.client?.lastHeartRate   ?? 72),
-      spo2:         parseFloat(attributes.client?.lastSpO2        ?? 98),
-      temperature:  parseFloat(attributes.client?.lastTemperature ?? 36.8),
-      riskScore:    parseInt(attributes.client?.lastRiskScore     ?? 0),
-      workerStatus: attributes.client?.workerStatus               ?? "NORMAL",
-      latitude:     parseFloat(attributes.client?.lastLatitude    ?? 17.8687),
-      longitude:    parseFloat(attributes.client?.lastLongitude   ?? 78.2322),
-      timestamp:    Date.now(),
-    };
-
-    return res.status(200).json(data);
-  } catch (err) {
-    // Return simulated data as fallback so dashboard never breaks
     return res.status(200).json({
-      heartRate:    72 + (Math.random() - 0.5) * 4,
-      spo2:         98 + (Math.random() - 0.5) * 0.6,
+      heartRate:    parseFloat(c.lastHeartRate   ?? 72),
+      spo2:         parseFloat(c.lastSpO2        ?? 98),
+      temperature:  parseFloat(c.lastTemperature ?? 36.8),
+      riskScore:    parseInt  (c.lastRiskScore   ?? 0),
+      workerStatus: c.workerStatus               ?? "NORMAL",
+      gsr:          parseFloat(c.lastGsr         ?? 45),
+      respRate:     parseFloat(c.lastRespRate    ?? 16),
+      fallDetected: c.lastFall === "true" || c.lastFall === true,
+      faultInjected:c.faultInjected              ?? "NONE",
+      latitude:     parseFloat(c.lastLatitude    ?? 17.8687),
+      longitude:    parseFloat(c.lastLongitude   ?? 78.2322),
+      timestamp:    Date.now(),
+    });
+  } catch (err) {
+    return res.status(200).json({
+      heartRate:    72   + (Math.random() - 0.5) * 4,
+      spo2:         98   + (Math.random() - 0.5) * 0.6,
       temperature:  36.8 + (Math.random() - 0.5) * 0.1,
+      gsr:          45   + (Math.random() - 0.5) * 5,
+      respRate:     16   + (Math.random() - 0.5) * 2,
       riskScore:    0,
       workerStatus: "NORMAL",
+      fallDetected: false,
+      faultInjected:"NONE",
       latitude:     17.8687,
       longitude:    78.2322,
       timestamp:    Date.now(),
