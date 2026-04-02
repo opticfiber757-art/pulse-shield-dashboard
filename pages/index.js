@@ -172,7 +172,7 @@ const PageContent = memo(function PageContent({
 }) {
   if (page===0) return (
     <>
-      <div style={{ display:"grid",gridTemplateColumns:"1.1fr 0.65fr 0.9fr 0.9fr",gap:16,marginBottom:16 }}>
+      <div style={{ display:"grid",gridTemplateColumns:"1.3fr 0.7fr 1fr",gap:16,marginBottom:16 }}>
         {/* Hero */}
         <div style={{
           background:"linear-gradient(135deg,#6366f1,#8b5cf6)",
@@ -241,19 +241,6 @@ const PageContent = memo(function PageContent({
           </div>
         </div>
 
-        {/* Fault Indicator */}
-        <div style={{ background:"white",borderRadius:20,padding:"20px",
-                      boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize:10,color:"#94a3b8",letterSpacing:1.5,
-                        textTransform:"uppercase",fontWeight:600,marginBottom:12 }}>Live Vitals</div>
-          <AlertRow label="Heart Rate" value={`${d.hr?.toFixed(1)} bpm`}
-            color={d.hr>120||d.hr<50?"#ef4444":"#22c55e"}/>
-          <AlertRow label="SpO₂" value={`${d.spo2?.toFixed(1)}%`}
-            color={d.spo2<90?"#ef4444":d.spo2<95?"#f59e0b":"#22c55e"}/>
-          <AlertRow label="Resp Rate" value={`${d.respRate?.toFixed(0)} br/min`}
-            color={d.respRate>20||d.respRate<12?"#f59e0b":"#6366f1"}/>
-        </div>
-
         {/* Latest alerts */}
         <div style={{ background:"white",borderRadius:20,padding:"20px",
                       boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
@@ -276,7 +263,7 @@ const PageContent = memo(function PageContent({
       </div>
 
       {/* Stat cards */}
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:16 }}>
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:16,marginBottom:16 }}>
         <StatCard label="Heart Rate" value={d.hr} unit="bpm" color="#ef4444" icon="❤️"
           sub={d.hr>120?"⚠ HIGH":d.hr<50?"⚠ LOW":"Normal"} mini={hrHist}/>
         <StatCard label="SpO₂ Oxygen" value={d.spo2} unit="%" color="#3b82f6" icon="💧"
@@ -284,7 +271,7 @@ const PageContent = memo(function PageContent({
         <StatCard label="Temperature" value={d.temp} unit="°C" color="#f59e0b" icon="🌡️"
           sub={d.temp>38.5?"⚠ FEVER":"Normal"} mini={tempHist}/>
         <StatCard label="Stress (GSR)" value={d.gsr} unit="%" color="#8b5cf6" icon="🧠"
-          sub={d.gsr>70?"⚠ HIGH STRESS":d.gsr>50?"Elevated":"Normal"} mini={hrHist.map(v=>v*0.5)}/> 
+          sub={d.gsr>70?"⚠ HIGH STRESS":d.gsr>50?"Elevated":"Normal"} mini={hrHist.map(v=>v*0.5)}/>
         <StatCard label="Respiratory Rate" value={d.respRate} unit="br/min" color="#06b6d4" icon="🌬️"
           sub={d.respRate>20?"⚠ HIGH":d.respRate<12?"⚠ LOW":"Normal 12–20"} mini={spo2Hist.map(v=>v*0.2)}/>
       </div>
