@@ -163,7 +163,187 @@ const PAGES = [
   { icon:"🛡️", label:"Risk Score" },
   { icon:"🔔", label:"Alerts" },
   { icon:"🗺️", label:"GPS Map" },
+  { icon:"🧬", label:"Clinical Engine" },
 ];
+
+// ── Clinical Decision Support Engine ─────────────────────────
+// Rule-based classifier using WHO/AHA/ESC clinical thresholds.
+// Each condition has: name, severity, description, action, sources.
+function runClinicalEngine(hr, spo2, temp, gsr, respRate, fall, risk) {
+  const conditions = [];
+
+  // ── FALL ──
+  if (fall) {
+    conditions.push({
+      name: "Fall / Trauma Event",
+      severity: "critical",
+      icon: "🚨",
+      description: "Sudden impact or loss of posture detected via accelerometer. Risk of injury, unconsciousness, or cardiac event.",
+      action: "Dispatch emergency response immediately. Do not move worker until assessed.",
+      source: "WHO Workplace Safety Guidelines",
+    });
+  }
+
+  // ── HEART RATE ──
+  if (hr > 150) {
+    conditions.push({
+      name: "Severe Tachycardia",
+      severity: "critical",
+      icon: "💔",
+      description: `Heart rate ${hr.toFixed(0)} bpm — dangerously elevated. May indicate ventricular tachycardia, severe heat stroke, or acute cardiac event.`,
+      action: "Remove from work immediately. Call emergency services. Prepare for AED use.",
+      source: "AHA Advanced Cardiac Life Support Guidelines",
+    });
+  } else if (hr > 120) {
+    conditions.push({
+      name: "Tachycardia",
+      severity: "warning",
+      icon: "⚡",
+      description: `Heart rate ${hr.toFixed(0)} bpm — above normal range (60–100 bpm). May indicate heat stress, dehydration, anxiety, or early cardiac strain.`,
+      action: "Move worker to cool area. Provide water. Monitor closely for 10 minutes.",
+      source: "ESC Guidelines on Supraventricular Tachycardia 2019",
+    });
+  } else if (hr < 40) {
+    conditions.push({
+      name: "Severe Bradycardia",
+      severity: "critical",
+      icon: "💔",
+      description: `Heart rate ${hr.toFixed(0)} bpm — critically low. Risk of syncope, cardiac arrest, or complete heart block.`,
+      action: "Lay worker flat immediately. Call emergency services. Begin monitoring for loss of consciousness.",
+      source: "AHA/ACC Bradycardia Guidelines 2018",
+    });
+  } else if (hr < 50) {
+    conditions.push({
+      name: "Bradycardia",
+      severity: "warning",
+      icon: "🐢",
+      description: `Heart rate ${hr.toFixed(0)} bpm — below normal range. May indicate medication effect, hypothermia, or vagal response.`,
+      action: "Remove from strenuous activity. Check for dizziness or chest pain. Monitor.",
+      source: "ESC Guidelines on Cardiac Pacing 2021",
+    });
+  }
+
+  // ── SPO2 ──
+  if (spo2 < 85) {
+    conditions.push({
+      name: "Severe Hypoxia",
+      severity: "critical",
+      icon: "🫁",
+      description: `SpO₂ ${spo2.toFixed(1)}% — critically low oxygen saturation. Immediate risk of organ damage, loss of consciousness, cardiac arrest.`,
+      action: "Remove from environment immediately. Administer supplemental oxygen. Call emergency services.",
+      source: "WHO Pulse Oximetry Training Manual",
+    });
+  } else if (spo2 < 92) {
+    conditions.push({
+      name: "Hypoxia",
+      severity: "critical",
+      icon: "💨",
+      description: `SpO₂ ${spo2.toFixed(1)}% — significantly reduced oxygen. May indicate toxic gas exposure, respiratory distress, or lung injury.`,
+      action: "Evacuate worker to fresh air. Administer oxygen if available. Seek medical attention.",
+      source: "OSHA Respiratory Protection Standard 29 CFR 1910.134",
+    });
+  } else if (spo2 < 95) {
+    conditions.push({
+      name: "Mild Hypoxemia",
+      severity: "warning",
+      icon: "🌫️",
+      description: `SpO₂ ${spo2.toFixed(1)}% — slightly reduced. Normal range is 95–100%. May indicate mild respiratory fatigue or dusty environment.`,
+      action: "Move to ventilated area. Rest for 5 minutes. Recheck reading.",
+      source: "British Thoracic Society Pulse Oximetry Guidelines",
+    });
+  }
+
+  // ── TEMPERATURE ──
+  if (temp > 40) {
+    conditions.push({
+      name: "Heat Stroke",
+      severity: "critical",
+      icon: "🔥",
+      description: `Body temperature ${temp.toFixed(1)}°C — life-threatening hyperthermia. Heat stroke causes rapid organ failure and death if untreated.`,
+      action: "EMERGENCY: Move to cool area immediately. Apply ice packs to neck, armpits, groin. Call ambulance.",
+      source: "WHO Heat Stroke Management Protocol",
+    });
+  } else if (temp > 38.5) {
+    conditions.push({
+      name: "Fever / Heat Exhaustion",
+      severity: "warning",
+      icon: "🌡️",
+      description: `Body temperature ${temp.toFixed(1)}°C — elevated above normal (36.1–37.2°C). Risk of heat exhaustion progressing to heat stroke in hot environments.`,
+      action: "Remove from heat source. Rehydrate. Rest in cool area. Monitor temperature every 15 minutes.",
+      source: "CDC Heat Illness Prevention Guidelines",
+    });
+  }
+
+  // ── RESPIRATORY RATE ──
+  if (respRate > 25) {
+    conditions.push({
+      name: "Tachypnea",
+      severity: "warning",
+      icon: "💨",
+      description: `Respiratory rate ${respRate.toFixed(0)} breaths/min — elevated above normal (12–20). May indicate respiratory distress, pain, anxiety, or metabolic acidosis.`,
+      action: "Check for breathing difficulty. Move to fresh air. Seek medical evaluation if persistent.",
+      source: "NICE Clinical Guidelines — Deteriorating Adult Patient",
+    });
+  } else if (respRate < 10) {
+    conditions.push({
+      name: "Bradypnea",
+      severity: "warning",
+      icon: "🌙",
+      description: `Respiratory rate ${respRate.toFixed(0)} breaths/min — below normal. May indicate CNS depression, medication effect, or extreme fatigue.`,
+      action: "Stimulate worker. Check responsiveness. Be prepared to assist breathing.",
+      source: "NICE Clinical Guidelines — Deteriorating Adult Patient",
+    });
+  }
+
+  // ── GSR / STRESS ──
+  if (gsr > 75) {
+    conditions.push({
+      name: "Acute Psychological Stress",
+      severity: "warning",
+      icon: "🧠",
+      description: `Stress index ${gsr.toFixed(0)}% — high sympathetic nervous system activation. Impairs judgment and reaction time, increasing accident risk.`,
+      action: "Allow rest break. Remove from high-risk task. Offer water and calm environment.",
+      source: "NIOSH Occupational Stress Guidelines",
+    });
+  }
+
+  // ── COMBINED CONDITIONS ──
+  if (hr > 110 && temp > 38) {
+    conditions.push({
+      name: "Heat Stress Syndrome",
+      severity: "critical",
+      icon: "☀️",
+      description: `Combined elevated HR (${hr.toFixed(0)} bpm) and temperature (${temp.toFixed(1)}°C). Classic heat stress pattern — cardiovascular system under severe strain.`,
+      action: "Immediate work stoppage. Cool the worker. IV fluids if available. Medical evaluation required.",
+      source: "ACGIH Heat Stress TLV Guidelines",
+    });
+  }
+
+  if (hr > 110 && spo2 < 94) {
+    conditions.push({
+      name: "Cardiac-Respiratory Stress",
+      severity: "critical",
+      icon: "💗",
+      description: `Elevated HR (${hr.toFixed(0)} bpm) with reduced SpO₂ (${spo2.toFixed(1)}%). Pattern consistent with cardiorespiratory compromise — heart compensating for low oxygen.`,
+      action: "Immediate evacuation. Administer oxygen. Prepare for possible cardiac event.",
+      source: "ESC/ERS Guidelines on Cardiopulmonary Exercise Testing",
+    });
+  }
+
+  // ── ALL NORMAL ──
+  if (conditions.length === 0) {
+    conditions.push({
+      name: "All Parameters Normal",
+      severity: "normal",
+      icon: "✅",
+      description: `HR ${hr.toFixed(0)} bpm | SpO₂ ${spo2.toFixed(1)}% | Temp ${temp.toFixed(1)}°C | Resp ${respRate.toFixed(0)} br/min — all within clinical normal ranges.`,
+      action: "No action required. Continue monitoring.",
+      source: "WHO Normal Vital Signs Reference Ranges",
+    });
+  }
+
+  return conditions;
+}
 
 // ── PageContent — defined OUTSIDE Dashboard so it never gets recreated ──
 // Receives all data as props — no closures over Dashboard state
@@ -518,6 +698,100 @@ const PageContent = memo(function PageContent({
       </div>
     </div>
   );
+
+  if (page===7) {
+    const conditions = runClinicalEngine(d.hr, d.spo2, d.temp, d.gsr, d.respRate, d.fall, d.risk);
+    const severityColor = { critical:"#ef4444", warning:"#f59e0b", normal:"#22c55e" };
+    const severityBg    = { critical:"#fef2f2", warning:"#fefce8", normal:"#f0fdf4" };
+    const severityBorder= { critical:"#fecaca", warning:"#fde68a", normal:"#bbf7d0" };
+    const severityLabel = { critical:"CRITICAL", warning:"WARNING", normal:"NORMAL" };
+
+    return (
+      <div>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:20,fontWeight:800,color:"#1e293b" }}>Clinical Decision Support Engine</div>
+            <div style={{ fontSize:12,color:"#94a3b8",marginTop:3 }}>
+              Rule-based classifier · WHO / AHA / ESC / OSHA clinical thresholds · {conditions.length} condition{conditions.length!==1?"s":""} detected
+            </div>
+          </div>
+          <div style={{
+            padding:"8px 16px", borderRadius:999, fontWeight:700, fontSize:13,
+            background: conditions.some(c=>c.severity==="critical") ? "#fef2f2"
+                      : conditions.some(c=>c.severity==="warning")  ? "#fefce8" : "#f0fdf4",
+            color: conditions.some(c=>c.severity==="critical") ? "#dc2626"
+                 : conditions.some(c=>c.severity==="warning")  ? "#d97706" : "#16a34a",
+            border: `1px solid ${conditions.some(c=>c.severity==="critical") ? "#fecaca"
+                               : conditions.some(c=>c.severity==="warning")  ? "#fde68a" : "#bbf7d0"}`,
+          }}>
+            {conditions.some(c=>c.severity==="critical") ? "⚠ CRITICAL CONDITIONS DETECTED"
+           : conditions.some(c=>c.severity==="warning")  ? "⚠ WARNING CONDITIONS DETECTED"
+           : "✓ WORKER CLINICALLY STABLE"}
+          </div>
+        </div>
+
+        {/* Current vitals summary bar */}
+        <div style={{ background:"white",borderRadius:16,padding:"16px 20px",
+                      boxShadow:"0 2px 16px rgba(0,0,0,0.06)",marginBottom:20,
+                      display:"flex",gap:32,flexWrap:"wrap" }}>
+          {[
+            { label:"Heart Rate",   value:`${d.hr?.toFixed(0)} bpm`,       color: d.hr>120||d.hr<50?"#ef4444":"#22c55e" },
+            { label:"SpO₂",         value:`${d.spo2?.toFixed(1)}%`,         color: d.spo2<92?"#ef4444":d.spo2<95?"#f59e0b":"#22c55e" },
+            { label:"Temperature",  value:`${d.temp?.toFixed(1)}°C`,         color: d.temp>38.5?"#ef4444":"#22c55e" },
+            { label:"Resp Rate",    value:`${d.respRate?.toFixed(0)} br/min`,color: d.respRate>25||d.respRate<10?"#f59e0b":"#22c55e" },
+            { label:"Stress (GSR)", value:`${d.gsr?.toFixed(0)}%`,           color: d.gsr>75?"#f59e0b":"#22c55e" },
+            { label:"Fall",         value: d.fall?"DETECTED":"No",           color: d.fall?"#ef4444":"#22c55e" },
+          ].map((v,i)=>(
+            <div key={i}>
+              <div style={{ fontSize:10,color:"#94a3b8",letterSpacing:1.2,
+                            textTransform:"uppercase",fontWeight:600,marginBottom:4 }}>{v.label}</div>
+              <div style={{ fontSize:16,fontWeight:800,color:v.color,
+                            fontFamily:"'DM Mono',monospace" }}>{v.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Condition cards */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {conditions.map((c,i)=>(
+            <div key={i} style={{
+              borderRadius:16, padding:"20px 24px",
+              background: severityBg[c.severity],
+              border: `1.5px solid ${severityBorder[c.severity]}`,
+              boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+            }}>
+              <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                  <span style={{ fontSize:22 }}>{c.icon}</span>
+                  <div style={{ fontSize:16,fontWeight:800,color:"#1e293b" }}>{c.name}</div>
+                </div>
+                <div style={{
+                  padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,
+                  background: severityColor[c.severity]+"20",
+                  color: severityColor[c.severity],
+                  border:`1px solid ${severityColor[c.severity]}40`,
+                  flexShrink:0,
+                }}>
+                  {severityLabel[c.severity]}
+                </div>
+              </div>
+              <div style={{ fontSize:13,color:"#475569",lineHeight:1.7,marginBottom:10 }}>
+                {c.description}
+              </div>
+              <div style={{
+                background:"white",borderRadius:10,padding:"10px 14px",
+                border:`1px solid ${severityBorder[c.severity]}`,
+                fontSize:13,fontWeight:600,color:"#1e293b",marginBottom:8,
+              }}>
+                🏥 Recommended Action: <span style={{ fontWeight:400,color:"#475569" }}>{c.action}</span>
+              </div>
+              <div style={{ fontSize:11,color:"#94a3b8" }}>📚 Source: {c.source}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return null;
 });
